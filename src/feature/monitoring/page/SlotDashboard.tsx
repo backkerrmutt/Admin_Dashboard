@@ -63,6 +63,9 @@ type ActivationLog = {
 
 // ===== DB sync helper (per-slot throttle) =====
 const __lastSyncMap: Record<string, number> = {};
+// ===== WARNING insert throttle (per slot) =====
+const __lastWarnAt: Record<string, number> = {};
+const WARN_INTERVAL_MS = 5000; // บันทึกอย่างมากทุก 5 วิ/slot
 
 async function syncSlotStateToDB(
   slotId: string,
@@ -151,13 +154,13 @@ export default function SlotDashboard() {
   // state จากหน้าก่อน
   const fromState = location.state as
     | Partial<{
-      slotId: string;
-      nodeId: string;
-      connectionStatus: SlotRow["connection_status"];
-      wifiStatus: SlotRow["wifi_status"];
-      sensorStatus: SlotRow["sensor_status"];
-      capacity: number;
-    }>
+        slotId: string;
+        nodeId: string;
+        connectionStatus: SlotRow["connection_status"];
+        wifiStatus: SlotRow["wifi_status"];
+        sensorStatus: SlotRow["sensor_status"];
+        capacity: number;
+      }>
     | undefined;
 
   const nodeId = slot?.cupboard_id || fromState?.nodeId;
@@ -176,10 +179,11 @@ export default function SlotDashboard() {
   const commandOpenTopic =
     nodeId && slotId ? makeCommandTopic(nodeId, slotId, "door") : null;
 
-  const { status: mqttStatus, onMessage, publish } = useMqtt(
-    [statusTopic, warningTopic].filter(Boolean) as string[]
-  );
-
+  const {
+    status: mqttStatus,
+    onMessage,
+    publish,
+  } = useMqtt([statusTopic, warningTopic].filter(Boolean) as string[]);
 
   useEffect(() => {
     if (!statusTopic && !warningTopic) return;
@@ -199,27 +203,27 @@ export default function SlotDashboard() {
           // งานอัปเดต UI ให้เป็น transition เพื่อลื่นขึ้น
           const run = () =>
             setSlot((prev) => {
-              const base: SlotRow =
-                prev ?? {
-                  slot_id: slotId!,
-                  cupboard_id: nodeId!,
-                  connection_status: "online",
-                  capacity: null,
-                  is_open: false,
-                  sensor_status: "unknown",
-                  wifi_status: "unknown",
-                  wifi_rssi: null,
-                  ip_addr: null,
-                  last_sensor_at: null,
-                  last_seen_at: null,
-                };
+              const base: SlotRow = prev ?? {
+                slot_id: slotId!,
+                cupboard_id: nodeId!,
+                connection_status: "online",
+                capacity: null,
+                is_open: false,
+                sensor_status: "unknown",
+                wifi_status: "unknown",
+                wifi_rssi: null,
+                ip_addr: null,
+                last_sensor_at: null,
+                last_seen_at: null,
+              };
 
               const parsed = parseIsOpen(payload?.is_open);
 
               // next จากค่าเดิม
               const next: SlotRow = {
                 ...base,
-                cupboard_id: payload?.cupboard_id ?? payload?.cupboard_id ?? base.cupboard_id,
+                // cupboard_id: payload?.cupboard_id ?? payload?.cupboard_id ?? base.cupboard_id,
+                cupboard_id: payload?.cupboard_id ?? base.cupboard_id,
                 is_open: parsed === null ? base.is_open : parsed,
                 capacity:
                   typeof payload?.capacity === "number"
@@ -287,30 +291,42 @@ export default function SlotDashboard() {
 
         // ----- WARNING -----
         if (topic === warningTopic) {
-          setWarning({
+          const msg = {
             code: payload?.code,
             message:
               payload?.message ??
               (typeof payload === "string" ? payload : JSON.stringify(payload)),
             ts: payload?.ts,
-          });
+          };
+          setWarning(msg);
 
-          // fire-and-forget เพื่อไม่บล็อก UI
+          // throttle ต่อ slot (กัน insert รัว ๆ)
+          const now = Date.now();
+          const key = slotId!;
+          if ((__lastWarnAt[key] ?? 0) + WARN_INTERVAL_MS > now) {
+            return;
+          }
+          __lastWarnAt[key] = now;
+
+          // fire-and-forget และ "เงียบ" ถ้า 404 (ตารางยังไม่มี)
           supabase
             .from("warnings")
             .insert({
               slot_id: slotId!,
-              code: payload?.code ?? null,
-              message:
-                payload?.message ??
-                (typeof payload === "string" ? payload : JSON.stringify(payload)),
-              created_at: new Date().toISOString(),
+              code: msg.code ?? null,
+              message: msg.message ?? null,
               raw: payload ?? null,
+              created_at: new Date().toISOString(),
             })
             .then(
-    () => {},
-    (err: unknown) => console.error("insert warnings error:", err)
-  );
+              () => {},
+              (err: any) => {
+                const status = err?.status ?? err?.code;
+                if (status !== 404) {
+                  console.error("insert warnings error:", err);
+                }
+              }
+            );
         }
       },
       { replayLast: true }
@@ -483,7 +499,13 @@ export default function SlotDashboard() {
         )}
 
         <Divider
-          sx={{ mt: 1, mb: 3, mx: 2, borderBottomWidth: 2, borderColor: "#CBDCEB" }}
+          sx={{
+            mt: 1,
+            mb: 3,
+            mx: 2,
+            borderBottomWidth: 2,
+            borderColor: "#CBDCEB",
+          }}
         />
 
         {/* Slot name */}
@@ -543,8 +565,12 @@ export default function SlotDashboard() {
                         <Typography color="#133E87">
                           Status : {usageText}
                         </Typography>
-                        <Typography sx={{ fontSize: 12 }} color="text.secondary">
-                          MQTT: {mqttStatus} {nodeId ? `• cupboard_id: ${nodeId}` : ""}
+                        <Typography
+                          sx={{ fontSize: 12 }}
+                          color="text.secondary"
+                        >
+                          MQTT: {mqttStatus}{" "}
+                          {nodeId ? `• cupboard_id: ${nodeId}` : ""}
                         </Typography>
                       </Box>
                     </Box>
@@ -571,7 +597,9 @@ export default function SlotDashboard() {
                             : undefined,
                         "&.Mui-disabled": {
                           bgcolor:
-                            sendingOpen || awaitingClose ? "#4EA1FF" : "#E0E0E0",
+                            sendingOpen || awaitingClose
+                              ? "#4EA1FF"
+                              : "#E0E0E0",
                           color:
                             sendingOpen || awaitingClose ? "#fff" : "#9E9E9E",
                         },
@@ -592,8 +620,8 @@ export default function SlotDashboard() {
                       {sendingOpen
                         ? "OPENING..."
                         : awaitingClose
-                          ? "WAITING FOR CLOSE"
-                          : "OPEN"}
+                        ? "WAITING FOR CLOSE"
+                        : "OPEN"}
                     </Button>
                   </CardContent>
                 </Card>
