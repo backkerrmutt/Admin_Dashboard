@@ -1,89 +1,28 @@
-diff --git a/src/api/slots.ts b/src/api/slots.ts
-index 1111111..2222222 100644
 --- a/src/api/slots.ts
 +++ b/src/api/slots.ts
+@@
+ type SlotRow = {
+   slot_id: string;
+   cupboard_id: string;
++  last_sensor_at: string | null;
+   teacher_id: string | null;
+   capacity: number | null; // 0–250 (raw mm)
+   connection_status: "active" | "inactive" | string;
+   is_open: boolean | null;
+   sensor_status: "ok" | "error" | "unknown" | string | null;
 @@
  export async function fetchSlots(): Promise<Slot[]> {
    const { data, error } = await supabase
      .from("slots")
--    .select(
--      "slot_id,node_id:cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
--    )
-+    .select(
-+      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
-+    )
-     .order("cupboard_id", { ascending: true })
-     .order("slot_id", { ascending: true });
+     .select(
+-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
++      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+     )
 @@
  export async function fetchSlotById(slotId: string): Promise<Slot | null> {
    const { data, error } = await supabase
      .from("slots")
--    .select(
--      "slot_id,node_id:cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
--    )
-+    .select(
-+      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
-+    )
-     .eq("slot_id", slotId)
-     .maybeSingle();
- 
-diff --git a/src/feature/monitoring/page/SlotDashboard.tsx b/src/feature/monitoring/page/SlotDashboard.tsx
-index 3333333..4444444 100644
---- a/src/feature/monitoring/page/SlotDashboard.tsx
-+++ b/src/feature/monitoring/page/SlotDashboard.tsx
-@@
--type SlotRow = {
--  slot_id: string;
--  node_id: string;
--  connection_status: string;
--  capacity: number | null;
--  is_open: boolean | null;
--  sensor_status: string | null;
--  wifi_status: string | null;
--  wifi_rssi: number | null;
--  ip_addr: string | null;
--  last_sensor_at: string | null;
--  last_seen_at: string | null;
--};
-+type SlotRow = {
-+  slot_id: string;
-+  cupboard_id: string;
-+  connection_status: string;
-+  capacity: number | null;
-+  is_open: boolean | null;
-+  sensor_status: string | null;
-+  wifi_status: string | null;
-+  wifi_rssi: number | null;
-+  ip_addr: string | null;
-+  last_sensor_at: string | null;
-+  last_seen_at: string | null;
-+};
-@@
--  const nodeId = slot?.node_id || fromState?.nodeId;
-+  const nodeId = slot?.cupboard_id || fromState?.cupboardId || fromState?.nodeId; // รองรับ state เก่า
-@@
--                  node_id: nodeId!,
-+                  cupboard_id: nodeId!,
-@@
--                node_id: payload?.cupboard_id ?? payload?.node_id ?? base.node_id,
-+                cupboard_id: payload?.cupboard_id ?? payload?.node_id ?? base.cupboard_id,
-@@
--                next.node_id === base.node_id
-+                next.cupboard_id === base.cupboard_id
-@@
--            "slot_id,node_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
-+            "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
-@@
--                          MQTT: {mqttStatus} {nodeId ? `• node_id: ${nodeId}` : ""}
-+                          MQTT: {mqttStatus} {nodeId ? `• cupboard_id: ${nodeId}` : ""}
- 
-diff --git a/src/feature/_infra/MqttBackgroundBridge.tsx b/src/feature/_infra/MqttBackgroundBridge.tsx
-index 5555555..6666666 100644
---- a/src/feature/_infra/MqttBackgroundBridge.tsx
-+++ b/src/feature/_infra/MqttBackgroundBridge.tsx
-@@
--                        node_id: p.cupboard_id ?? p.node_id ?? undefined,
-+                        cupboard_id: p.cupboard_id ?? p.node_id ?? undefined,
-@@
--                        prev.node_id === v.node_id &&
-+                        prev.cupboard_id === v.cupboard_id &&
+     .select(
+-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
++      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+     )
