@@ -76,7 +76,7 @@ export async function fetchSlots(): Promise<Slot[]> {
   const { data, error } = await supabase
     .from("slots")
     .select(
-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
     )
     .order("cupboard_id", { ascending: true })
     .order("slot_id", { ascending: true });
@@ -93,7 +93,7 @@ export async function fetchSlotById(slotId: string): Promise<Slot | null> {
   const { data, error } = await supabase
     .from("slots")
     .select(
-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
     )
     .eq("slot_id", slotId)
     .maybeSingle();
