@@ -1,0 +1,30 @@
+diff --git a/src/api/slots.ts b/src/api/slots.ts
+index 0000000..1111111 100644
+--- a/src/api/slots.ts
++++ b/src/api/slots.ts
+@@
+ type SlotRow = {
+   slot_id: string;
+   cupboard_id: string;
++  last_sensor_at: string | null;
+   teacher_id: string | null;
+   capacity: number | null; // 0–250 (raw mm)
+   connection_status: "active" | "inactive" | string;
+   is_open: boolean | null;
+   sensor_status: "ok" | "error" | "unknown" | string | null;
+@@
+ export async function fetchSlots(): Promise<Slot[]> {
+   const { data, error } = await supabase
+     .from("slots")
+     .select(
+-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
++      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+     )
+@@
+ export async function fetchSlotById(slotId: string): Promise<Slot | null> {
+   const { data, error } = await supabase
+     .from("slots")
+     .select(
+-      "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
++      "slot_id,cupboard_id,teacher_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+     )
