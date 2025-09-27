@@ -33,7 +33,7 @@ const TBL = {
 
 type SlotRow = {
   slot_id: string;
-  node_id: string;
+  cupboard_id: string;
   connection_status: "online" | "offline" | string;
   capacity: number | null;
   is_open?: boolean;
@@ -160,7 +160,7 @@ export default function SlotDashboard() {
     }>
     | undefined;
 
-  const nodeId = slot?.node_id || fromState?.nodeId;
+  const nodeId = slot?.cupboard_id || fromState?.nodeId;
 
   const [warning, setWarning] = useState<{
     code?: string;
@@ -202,7 +202,7 @@ export default function SlotDashboard() {
               const base: SlotRow =
                 prev ?? {
                   slot_id: slotId!,
-                  node_id: nodeId!,
+                  cupboard_id: nodeId!,
                   connection_status: "online",
                   capacity: null,
                   is_open: false,
@@ -219,7 +219,7 @@ export default function SlotDashboard() {
               // next จากค่าเดิม
               const next: SlotRow = {
                 ...base,
-                node_id: payload?.cupboard_id ?? payload?.node_id ?? base.node_id,
+                cupboard_id: payload?.cupboard_id ?? payload?.cupboard_id ?? base.cupboard_id,
                 is_open: parsed === null ? base.is_open : parsed,
                 capacity:
                   typeof payload?.capacity === "number"
@@ -246,7 +246,7 @@ export default function SlotDashboard() {
                 next.wifi_status === base.wifi_status &&
                 next.wifi_rssi === base.wifi_rssi &&
                 next.ip_addr === base.ip_addr &&
-                next.node_id === base.node_id
+                next.cupboard_id === base.cupboard_id
               ) {
                 return prev;
               }
@@ -330,7 +330,7 @@ export default function SlotDashboard() {
         const { data, error } = await supabase
           .from(TBL.slots)
           .select(
-            "slot_id,node_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
+            "slot_id,cupboard_id,connection_status,capacity,is_open,sensor_status,wifi_status,wifi_rssi,ip_addr,last_sensor_at,last_seen_at"
           )
           .eq("slot_id", slotId)
           .maybeSingle();
@@ -544,7 +544,7 @@ export default function SlotDashboard() {
                           Status : {usageText}
                         </Typography>
                         <Typography sx={{ fontSize: 12 }} color="text.secondary">
-                          MQTT: {mqttStatus} {nodeId ? `• node_id: ${nodeId}` : ""}
+                          MQTT: {mqttStatus} {nodeId ? `• cupboard_id: ${nodeId}` : ""}
                         </Typography>
                       </Box>
                     </Box>
